@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Registered Users</title>
+<style>
+  :root{
+    --bg:#0f1115;
+    --panel:#161a21;
+    --panel-2:#1c212b;
+    --text:#dce1e8;
+    --muted:#8992a3;
+    --accent:#5aa9ff;
+    --accent-2:#7ee0c3;
+    --ok:#59c17b;
+    --warn:#e8b04b;
+    --border:#242a35;
+    --code-bg:#0a0c10;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background:var(--bg);
+    color:var(--text);
+    font-family:"Segoe UI",Inter,system-ui,-apple-system,Roboto,Helvetica,Arial,sans-serif;
+    padding:36px 24px 80px;
+  }
+  .wrap{max-width:900px;margin:0 auto;}
+  header{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    flex-wrap:wrap;
+    gap:12px;
+    margin-bottom:22px;
+  }
+  h1{
+    font-size:1.4em;
+    margin:0;
+    color:#fff;
+  }
+  .meta{
+    font-size:12.5px;
+    color:var(--muted);
+  }
+  #refresh-btn{
+    background:var(--panel-2);
+    border:1px solid var(--border);
+    color:var(--text);
+    padding:8px 14px;
+    border-radius:8px;
+    font-size:13px;
+    cursor:pointer;
+  }
+  #refresh-btn:hover{border-color:var(--accent); color:var(--accent);}
+  .stat-row{
+    display:flex;
+    gap:12px;
+    margin-bottom:22px;
+    flex-wrap:wrap;
+  }
+  .stat-card{
+    background:var(--panel);
+    border:1px solid var(--border);
+    border-radius:10px;
+    padding:14px 20px;
+    min-width:130px;
+  }
+  .stat-card .num{
+    font-size:1.6em;
+    color:var(--accent-2);
+    font-weight:600;
+  }
+  .stat-card .label{
+    font-size:12px;
+    color:var(--muted);
+    margin-top:2px;
+  }
+  #search-box{
+    width:100%;
+    padding:10px 14px;
+    background:var(--panel-2);
+    border:1px solid var(--border);
+    border-radius:8px;
+    color:var(--text);
+    font-size:13.5px;
+    margin-bottom:18px;
+  }
+  table{
+    width:100%;
+    border-collapse:collapse;
+    background:var(--panel);
+    border:1px solid var(--border);
+    border-radius:10px;
+    overflow:hidden;
+  }
+  th, td{
+    padding:11px 14px;
+    text-align:left;
+    font-size:13.5px;
+    border-bottom:1px solid var(--border);
+  }
+  th{
+    background:var(--panel-2);
+    color:var(--muted);
+    font-size:11.5px;
+    text-transform:uppercase;
+    letter-spacing:.04em;
+  }
+  tr:last-child td{border-bottom:none;}
+  tr:hover td{background:rgba(255,255,255,.02);}
+  .empty-state{
+    text-align:center;
+    padding:60px 20px;
+    color:var(--muted);
+  }
+  .empty-state code{
+    background:var(--code-bg);
+    padding:2px 8px;
+    border-radius:6px;
+    color:#f0c987;
+  }
+  .badge{
+    display:inline-block;
+    background:var(--code-bg);
+    border:1px solid var(--border);
+    border-radius:10px;
+    padding:2px 8px;
+    font-size:12px;
+    color:var(--accent-2);
+  }
+  .error-banner{
+    background:rgba(232,176,75,.1);
+    border:1px solid rgba(232,176,75,.35);
+    color:var(--warn);
+    padding:12px 16px;
+    border-radius:8px;
+    margin-bottom:18px;
+    font-size:13.5px;
+  }
+  .note-box{
+    margin-top:28px;
+    padding:14px 18px;
+    background:var(--panel);
+    border:1px solid var(--border);
+    border-left:3px solid var(--accent);
+    border-radius:0 8px 8px 0;
+    font-size:13px;
+    color:var(--muted);
+    line-height:1.6;
+  }
+  .note-box strong{color:var(--text);}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <h1>Registered Users</h1>
+      <div class="meta" id="exported-at">Not loaded yet</div>
+    </div>
+    <button id="refresh-btn" onclick="loadUsers()">↻ Refresh</button>
+  </header>
+
+  <div id="error-slot"></div>
+
+  <div class="stat-row" id="stat-row" style="display:none;">
+    <div class="stat-card">
+      <div class="num" id="stat-total">0</div>
+      <div class="label">Total users</div>
+    </div>
+    <div class="stat-card">
+      <div class="num" id="stat-uploads">0</div>
+      <div class="label">Total uploads (all users)</div>
+    </div>
+    <div class="stat-card">
+      <div class="num" id="stat-downloads">0</div>
+      <div class="label">Total downloads (all users)</div>
+    </div>
+  </div>
+
+  <input id="search-box" type="text" placeholder="Search by username or email..." oninput="renderTable()">
+
+  <div id="table-slot"></div>
+
+  <div class="note-box">
+    <strong>How this works right now:</strong> this page reads a static file, <code>users_export.json</code>,
+    in the same folder. Re-run <code>python scripts/export_users.py</code> from <code>backend/</code>
+    whenever you want fresh data, then click Refresh above.<br><br>
+    <strong>Wiring it to your live backend later:</strong> once your teammate's FastAPI app is running,
+    ask them to add a protected <code>GET /admin/users</code> endpoint that returns this same JSON shape
+    (id, username, email, created_at, total_uploads, total_downloads). Then just change the
+    <code>fetch('users_export.json')</code> line near the bottom of this file to
+    <code>fetch('http://localhost:8000/admin/users', &#123; headers: &#123; Authorization: 'Bearer ' + token &#125; &#125;)</code>
+    and this page will show live data instead of a snapshot.
+  </div>
+</div>
+
+<script>
+let allUsers = [];
+
+async function loadUsers(){
+  const errorSlot = document.getElementById('error-slot');
+  errorSlot.innerHTML = '';
+  try{
+    const res = await fetch('users_export.json', { cache: 'no-store' });
+    if(!res.ok) throw new Error('HTTP ' + res.status);
+    const data = await res.json();
+
+    allUsers = data.users || [];
+    document.getElementById('exported-at').textContent = data.exported_at
+      ? 'Last exported: ' + new Date(data.exported_at).toLocaleString()
+      : 'No export yet -- run the export script first';
+
+    document.getElementById('stat-row').style.display = 'flex';
+    document.getElementById('stat-total').textContent = data.total_users || 0;
+    document.getElementById('stat-uploads').textContent =
+      allUsers.reduce((sum, u) => sum + (u.total_uploads || 0), 0);
+    document.getElementById('stat-downloads').textContent =
+      allUsers.reduce((sum, u) => sum + (u.total_downloads || 0), 0);
+
+    renderTable();
+  }catch(e){
+    errorSlot.innerHTML =
+      '<div class="error-banner">Could not load users_export.json. Make sure you\'re viewing this ' +
+      'through a local web server (not double-clicking the file) -- see the note at the bottom of the page.</div>';
+    document.getElementById('table-slot').innerHTML = '';
+    document.getElementById('stat-row').style.display = 'none';
+  }
+}
+
+function renderTable(){
+  const query = document.getElementById('search-box').value.trim().toLowerCase();
+  const filtered = allUsers.filter(u =>
+    !query ||
+    (u.username && u.username.toLowerCase().includes(query)) ||
+    (u.email && u.email.toLowerCase().includes(query))
+  );
+
+  const slot = document.getElementById('table-slot');
+
+  if(filtered.length === 0){
+    slot.innerHTML =
+      '<div class="empty-state">' +
+      (allUsers.length === 0
+        ? 'No registered users yet. Run <code>python scripts/export_users.py</code> after someone registers.'
+        : 'No users match your search.') +
+      '</div>';
+    return;
+  }
+
+  const rows = filtered.map(u => `
+    <tr>
+      <td>${u.id}</td>
+      <td>${escapeHtml(u.username)}</td>
+      <td>${escapeHtml(u.email)}</td>
+      <td>${u.created_at ? new Date(u.created_at).toLocaleString() : '--'}</td>
+      <td><span class="badge">${u.total_uploads || 0}</span></td>
+      <td><span class="badge">${u.total_downloads || 0}</span></td>
+    </tr>
+  `).join('');
+
+  slot.innerHTML = `
+    <table>
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>Username</th>
+          <th>Email</th>
+          <th>Registered At</th>
+          <th>Uploads</th>
+          <th>Downloads</th>
+        </tr>
+      </thead>
+      <tbody>${rows}</tbody>
+    </table>
+  `;
+}
+
+function escapeHtml(str){
+  if(!str) return '';
+  return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+loadUsers();
+</script>
+</body>
+</html>
